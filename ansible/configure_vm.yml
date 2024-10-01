@@ -1,6 +1,5 @@
----
 - name: Configure EC2 Instance
-  hosts: all
+  hosts: DevOps-Project
   become: yes
   tasks:
     - name: Install unzip

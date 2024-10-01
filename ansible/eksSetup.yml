@@ -1,0 +1,32 @@
+- name: Create EKS Cluster
+  hosts: DevOps-Project
+  tasks:
+    - name: Create EKS cluster using eksctl
+      command: >
+        eksctl create cluster
+        --name eks-mundos-e
+        --region us-east-1
+        --node-type t3.small
+        --nodes 3
+        --with-oidc
+        --ssh-access
+        --ssh-public-key pin
+        --managed
+        --full-ecr-access
+        --zones us-east-1a,us-east-1b,us-east-1c
+      register: eks_output
+      failed_when: eks_output.rc != 0
+
+    - name: Update kubeconfig for kubectl
+      command: >
+        aws eks update-kubeconfig
+        --name eks-mundos-e
+        --region us-east-1
+      register: kubeconfig_output
+      failed_when: kubeconfig_output.rc != 0
+
+    - name: Deploy Nginx to EKS
+      kubernetes:
+        kubeconfig: manifiestoEks/ 
+        state: present
+        definition: "{{ lookup('file', 'nginx-deployment.yaml') }}"
