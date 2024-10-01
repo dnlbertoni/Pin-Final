@@ -3,15 +3,13 @@ provider "aws" {
 }
 
 data "aws_key_pair" "existing" {
-  key_name = "devops"  # Cambia a tu key pair existente
+  key_name = "devops"  
 }
 
 resource "aws_instance" "ec2_instance" {
-  ami           = "ami-005fc0f236362e99f"  # AMI de Ubuntu Server 22.04 en us-east-1
+  ami           = "ami-005fc0f236362e99f"
   instance_type = "t2.micro"
   key_name      = data.aws_key_pair.existing.key_name
-
-  user_data = file("../scripts/initialInstance.sh")  # Cambia a la ruta correcta del script
 
   tags = {
     Name = "DevOps-Project"
