@@ -1,2 +1,2 @@
-[devops]
-<INSTANCE_PUBLIC_IP>
+[DevOps-Project]
+52.55.154.165 ansible_ssh_private_key_file=../../devopsPin.pem ansible_user=ubuntu
