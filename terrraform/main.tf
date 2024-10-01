@@ -19,3 +19,7 @@ resource "aws_instance" "ec2_instance" {
 output "instance_ip" {
   value = aws_instance.ec2_instance.public_ip
 }
+
+output "tag_name" {
+  value = aws_instance.ec2_instance.tags["Name"]
+}

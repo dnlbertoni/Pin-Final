@@ -1,5 +1,5 @@
 - name: Configure EC2 Instance
-  hosts: DevOps-Project
+  hosts: all
   become: yes
   tasks:
     - name: Install unzip
@@ -45,7 +45,11 @@
         path: /home/{{ ansible_user }}/.bashrc
         line: 'export PATH=$PATH:/usr/local/bin'
         state: present
-
+    - name: Install eksctl
+      get_url:
+        url: "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"
+        dest: "/tmp/eksctl.tar.gz"
+        
     - name: Extract eksctl
       unarchive:
         src: "/tmp/eksctl.tar.gz"
@@ -60,7 +64,7 @@
         var: ls_tmp.stdout_lines
 
     - name: Move eksctl to /usr/local/bin
-      command: mv /tmp/eksctl /usr/local/bin/eksctl  # Cambia esto una vez que sepas el nombre correcto
+      command: mv /tmp/eksctl /usr/local/bin/eksctl  
       args:
         removes: /usr/local/bin/eksctl
 
@@ -96,19 +100,59 @@
 
     - name: Add Helm GPG key
       apt_key:
-        url: "https://baltocdn.com/helm/signing.asc"
-        state: present
+       url: "https://baltocdn.com/helm/signing.asc"
+       state: present
+       validate_certs: yes
 
     - name: Add Helm repository
       apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main"
-        state: present
+       repo: "deb [signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main"
+       state: present
 
     - name: Install Helm
       apt:
         name: helm
         state: latest
         update_cache: yes
+
+    - name: Agregar la clave de firma de Helm
+      shell: |
+        curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+      ignore_errors: yes  # Si necesitas continuar incluso si falla
+
+    - name: Instalar apt-transport-https
+      apt:
+       name: apt-transport-https
+       state: present
+   
+    - name: Agregar el repositorio de Helm
+      shell: |
+         echo "deb [signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+      ignore_errors: yes  # Si necesitas continuar incluso si falla
+     
+    - name: Actualizar la lista de paquetes
+      apt:
+         update_cache: yes
+     
+    - name: Instalar Helm 
+      apt:
+         name: helm
+         state: present
+
+    - name: Terraform Keys
+      shell: |
+         wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+      ignore_errors: yes
+
+    - name: Keys install terraform
+      shell: |
+         gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
+      ignore_errors: yes  
+
+    - name: Add repo Terraform
+      shell: |
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+      ignore_errors: yes
 
     - name: Install Terraform
       apt:
