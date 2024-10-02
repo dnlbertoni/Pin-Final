@@ -23,11 +23,24 @@ resource "aws_vpc" "eks_vpc" {
   }
 }
 
+# resource "aws_subnet" "eks_subnet" {
+#   count             = 3
+#   vpc_id            = aws_vpc.eks_vpc.id
+#   cidr_block        = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
+#   availability_zone = data.aws_availability_zones.available.names[count.index]
+#   tags = {
+#     Name                                        = "${var.cluster_name}-subnet-${count.index + 1}"
+#     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+#   }
+# }
+
 resource "aws_subnet" "eks_subnet" {
-  count             = 3
-  vpc_id            = aws_vpc.eks_vpc.id
-  cidr_block        = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
+  count                   = 3
+  vpc_id                  = aws_vpc.eks_vpc.id
+  cidr_block              = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
+  availability_zone       = element(data.aws_availability_zones.available.names, count.index)
+  map_public_ip_on_launch = true
+
   tags = {
     Name                                        = "${var.cluster_name}-subnet-${count.index + 1}"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
@@ -148,14 +161,23 @@ resource "aws_instance" "ec2_instance" {
 # Security Group para EC2
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.cluster_name}-ec2-security-group"
-  description = "Security group for EC2 instance"
+  description = "Security group for EC2 instance and EKS"
   vpc_id      = aws_vpc.eks_vpc.id
+  
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
   egress {
     from_port   = 0
     to_port     = 0
@@ -203,9 +225,29 @@ resource "kubernetes_pod" "nginx" {
 
       port {
         container_port = 80
+        name           = "http"
       }
     }
   }
 
- depends_on = [aws_eks_node_group.node_group, aws_eks_cluster.eks_cluster]
+  depends_on = [aws_eks_node_group.node_group, aws_eks_cluster.eks_cluster]
+}
+
+resource "kubernetes_service" "nginx" {
+  metadata {
+    name = "nginx-service"
+  }
+  spec {
+    selector = {
+      App = kubernetes_pod.nginx.metadata[0].labels.App
+    }
+    port {
+      port        = 80
+      target_port = 80
+    }
+
+    type = "LoadBalancer"
+  }
+
+  depends_on = [kubernetes_pod.nginx]
 }
