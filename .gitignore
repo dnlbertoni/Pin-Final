@@ -2,3 +2,5 @@
 .terraform*
 terraform.tfs*
 .vscode/
+*.tfvars  
+*.pem

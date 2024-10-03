@@ -1,20 +1,3 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = var.region
-}
-
 # VPC y Subredes
 resource "aws_vpc" "eks_vpc" {
   cidr_block = var.vpc_cidr
@@ -22,17 +5,6 @@ resource "aws_vpc" "eks_vpc" {
     Name = "${var.cluster_name}-vpc"
   }
 }
-
-# resource "aws_subnet" "eks_subnet" {
-#   count             = 3
-#   vpc_id            = aws_vpc.eks_vpc.id
-#   cidr_block        = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
-#   availability_zone = data.aws_availability_zones.available.names[count.index]
-#   tags = {
-#     Name                                        = "${var.cluster_name}-subnet-${count.index + 1}"
-#     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
-#   }
-# }
 
 resource "aws_subnet" "eks_subnet" {
   count                   = 3
@@ -76,6 +48,38 @@ resource "aws_route_table_association" "eks_route_table_assoc" {
   route_table_id = aws_route_table.eks_route_table.id
 }
 
+
+##### Seguridad
+
+# Security Group para EC2
+resource "aws_security_group" "ec2_sg" {
+  name        = "${var.cluster_name}-ec2-security-group"
+  description = "Security group for EC2 instance and EKS"
+  vpc_id      = aws_vpc.eks_vpc.id
+  
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+
 # IAM Role para EKS
 resource "aws_iam_role" "eks_role" {
   name = "${var.cluster_name}-cluster-role"
@@ -96,15 +100,6 @@ resource "aws_iam_role_policy_attachment" "eks_role_policy" {
   role       = aws_iam_role.eks_role.name
 }
 
-# EKS Cluster
-resource "aws_eks_cluster" "eks_cluster" {
-  name     = var.cluster_name
-  role_arn = aws_iam_role.eks_role.arn
-  vpc_config {
-    subnet_ids = aws_subnet.eks_subnet[*].id
-  }
-  depends_on = [aws_iam_role_policy_attachment.eks_role_policy]
-}
 
 # IAM Role para Node Group
 resource "aws_iam_role" "node_group_role" {
@@ -146,44 +141,16 @@ resource "aws_eks_node_group" "node_group" {
   depends_on     = [aws_iam_role_policy_attachment.node_group_role_policy]
 }
 
-# EC2 Instance
-resource "aws_instance" "ec2_instance" {
-  ami                    = var.ec2_ami
-  instance_type         = var.ec2_instance_type
-  key_name              = var.ec2_key_name
-  subnet_id             = aws_subnet.eks_subnet[0].id
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
-  tags = {
-    Name = var.ec2_name
-  }
-}
 
-# Security Group para EC2
-resource "aws_security_group" "ec2_sg" {
-  name        = "${var.cluster_name}-ec2-security-group"
-  description = "Security group for EC2 instance and EKS"
-  vpc_id      = aws_vpc.eks_vpc.id
-  
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+
+####### EKS Cluster
+resource "aws_eks_cluster" "eks_cluster" {
+  name     = var.cluster_name
+  role_arn = aws_iam_role.eks_role.arn
+  vpc_config {
+    subnet_ids = aws_subnet.eks_subnet[*].id
   }
-  
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  depends_on = [aws_iam_role_policy_attachment.eks_role_policy]
 }
 
 # Kubernetes provider configuration
@@ -200,14 +167,6 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
   token                  = data.aws_eks_cluster_auth.cluster.token
 }
-
-# Data source para obtener detalles del pod Nginx
-# data "kubernetes_pod" "nginx" {
-#   metadata {
-#     name      = "nginx-example"
-#     namespace = "default"  # Ajusta esto si es necesario
-#   }
-# }
 
 # Nginx Pod
 resource "kubernetes_pod" "nginx" {

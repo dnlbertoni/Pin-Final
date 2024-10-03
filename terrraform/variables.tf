@@ -1,9 +1,18 @@
-# variable "region" {
-#   default = "us-east-1"
-# }
-variable "region" {
+
+variable "aws_region" {
   description = "La región de AWS donde se desplegará el clúster"
   default     = "us-east-1"
+}
+
+variable "aws_access_key" {
+  description = "El AWS Access Key ID"
+  type        = string
+}
+
+variable "aws_secret_key" {
+  description = "El AWS Secret Access Key"
+  type        = string
+  sensitive   = true
 }
 
 variable "cluster_name" {
@@ -54,4 +63,10 @@ variable "ec2_key_name" {
 variable "ec2_name" {
   description = "Nombre de la instancia EC2"
   default     = "DevOps-Project"
+}
+
+
+variable "private_key_path" {
+  description = "Ruta a la llave privada local para la conexión SSH"
+  type        = string
 }

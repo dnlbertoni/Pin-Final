@@ -1,0 +1,13 @@
+aws_access_key         = "AKIAXXXXXXXXXXXXXXXXX"
+aws_secret_key         = "wJalXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+cluster_name           = "eks-cluster-random123"
+vpc_cidr               = "10.1.0.0/16"
+node_group_desired_size = 2
+node_group_max_size    = 4
+node_group_min_size    = 1
+node_group_instance_type = "t3.medium"
+ec2_ami                = "ami-0a313d6098716f372"  # AMI válida para us-east-1
+ec2_instance_type      = "t2.micro"
+ec2_key_name           = "my-random-key-pair"
+ec2_name               = "DevOps-Instance-XYZ"
+private_key_path       = "~/.ssh/my_random_private_key.pem"
